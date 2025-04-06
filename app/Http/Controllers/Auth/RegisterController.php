@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Account;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RegisterController extends Controller
 {
@@ -30,7 +32,9 @@ class RegisterController extends Controller
     |
     */
 
-    use RegistersUsers;
+    use RegistersUsers {
+        register as traitRegister;
+    }
 
     /**
      * Where to redirect users after registration.
@@ -68,9 +72,6 @@ class RegisterController extends Controller
 
         event(new Registered($user = $this->create($request->all())));
 
-        // Don't log in the user automatically
-        // Auth::login($user);
-
         return redirect($this->redirectPath())
             ->with('status', 'Please check your email for a verification link. You must verify your email before logging in.');
     }
@@ -86,6 +87,7 @@ class RegisterController extends Controller
         return Validator::make($data, [
             'first_name' => ['required', 'string', 'max:50'],
             'last_name' => ['required', 'string', 'max:50'],
+            'username' => ['required', 'string', 'max:50', 'unique:accounts,username'],
             'age' => ['required', 'integer', 'min:18'],
             'sex' => ['required', 'string', 'in:Male,Female'],
             'phone_number' => ['required', 'string', 'max:20'],
@@ -103,9 +105,7 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {
-        try {
-            DB::beginTransaction();
-
+        return DB::transaction(function () use ($data) {
             $user = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -114,42 +114,51 @@ class RegisterController extends Controller
                 'phone_number' => $data['phone_number'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'role' => 'user',
-                'status' => 'active',
             ]);
 
+            $profileImagePath = '';
             if (isset($data['profile_picture'])) {
-                $path = $data['profile_picture']->store('profile_pictures', 'public');
-                $user->profile_picture = $path;
-                $user->save();
+                $profileImagePath = $data['profile_picture']->store('profile_pictures', 'public');
+                
+                // Debug logging
+                Log::info('Profile picture uploaded via RegisterController', [
+                    'user_id' => $user->user_id,
+                    'path' => $profileImagePath,
+                    'exists' => Storage::disk('public')->exists($profileImagePath)
+                ]);
             }
 
-            DB::commit();
+            // Create an account for the user
+            try {
+                $account = Account::create([
+                    'user_id' => $user->user_id,
+                    'username' => $data['username'], // Use provided username
+                    'password' => $user->password, // Use the same hashed password
+                    'role' => 'user',
+                    'profile_img' => $profileImagePath,
+                    'account_status' => 'active'
+                ]);
+                
+                Log::info('Account created successfully via RegisterController', [
+                    'user_id' => $user->user_id,
+                    'account_id' => $account->account_id,
+                    'username' => $account->username
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to create account via RegisterController', [
+                    'user_id' => $user->user_id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e; // Re-throw to rollback transaction
+            }
+
             return $user;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
-     * The user has been registered.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  mixed  $user
-     * @return mixed
-     */
-    protected function registered(Request $request, $user)
-    {
-        // Don't log in the user automatically
-        // Auth::login($user);
-
-        return redirect($this->redirectPath())
-            ->with('status', 'Please check your email for a verification link. You must verify your email before logging in.');
-    }
-
-    /**
-     * Get the post register / login redirect path.
+     * Get the path to redirect to.
      *
      * @return string
      */

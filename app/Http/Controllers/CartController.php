@@ -36,7 +36,17 @@ class CartController extends Controller
                 ->make(true);
         }
 
-        return view('cart.index');
+        // Get cart items directly and pass to the view
+        $cartItems = Cart::with(['item.images', 'item.inventory'])
+            ->where('account_id', Auth::user()->account->account_id)
+            ->get();
+            
+        // Calculate subtotal
+        $subtotal = $cartItems->sum(function($cart) {
+            return $cart->item->price * $cart->quantity;
+        });
+        
+        return view('cart.index', compact('cartItems', 'subtotal'));
     }
 
     /**
@@ -170,6 +180,21 @@ class CartController extends Controller
     }
 
     /**
+     * Get cart items
+     */
+    public function getItems()
+    {
+        $cartItems = Cart::with(['item.images', 'item.inventory'])
+            ->where('account_id', Auth::user()->account->account_id)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $cartItems
+        ]);
+    }
+
+    /**
      * Get cart total
      */
     public function getTotal()
@@ -216,6 +241,69 @@ class CartController extends Controller
                 'unavailable_items' => $unavailableItems,
                 'has_unavailable_items' => !empty($unavailableItems)
             ]
+        ]);
+    }
+
+    /**
+     * Get cart item by item_id
+     */
+    public function getCartByItemId($itemId)
+    {
+        $cart = Cart::where('item_id', $itemId)
+            ->where('account_id', Auth::user()->account->account_id)
+            ->firstOrFail();
+            
+        return $cart;
+    }
+
+    /**
+     * Update cart item by item_id
+     */
+    public function updateByItemId(Request $request, $itemId)
+    {
+        $validator = Validator::make($request->all(), [
+            'quantity' => 'required|integer|min:1'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        $cart = $this->getCartByItemId($itemId);
+        $item = Item::with('inventory')->find($itemId);
+        
+        if (!$item->inventory || $item->inventory->quantity < $request->quantity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Insufficient stock available'
+            ], 422);
+        }
+
+        $cart->update([
+            'quantity' => $request->quantity
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart item updated successfully',
+            'data' => $cart
+        ]);
+    }
+
+    /**
+     * Remove cart item by item_id
+     */
+    public function destroyByItemId($itemId)
+    {
+        $cart = $this->getCartByItemId($itemId);
+        $cart->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item removed from cart successfully'
         ]);
     }
 }

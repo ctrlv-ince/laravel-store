@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $primaryKey = 'item_id';
     public $timestamps = true;
@@ -15,8 +16,7 @@ class Item extends Model
     protected $fillable = [
         'item_name',
         'price',
-        'item_description',
-        'date_added'
+        'item_description'
     ];
 
     public function images()

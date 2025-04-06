@@ -27,9 +27,18 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'login' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
+    }
+    
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Don't automatically merge login as email anymore
+        // We'll handle this in authenticate method
     }
 
     /**
@@ -41,15 +50,59 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+        // Try to authenticate with username from Account model
+        $credentials = ['password' => $this->password];
+        $loginField = $this->login;
+        
+        // First attempt - try by email
+        if (filter_var($loginField, FILTER_VALIDATE_EMAIL)) {
+            $credentials['email'] = $loginField;
+            if (Auth::attempt($credentials, $this->boolean('remember'))) {
+                // Check account status after successful authentication
+                $this->checkAccountStatus();
+                RateLimiter::clear($this->throttleKey());
+                return;
+            }
+        }
+        
+        // Second attempt - try with username via Account relation
+        $account = \App\Models\Account::where('username', $loginField)->first();
+        if ($account) {
+            $user = $account->user;
+            if ($user && Auth::attempt(['email' => $user->email, 'password' => $this->password], $this->boolean('remember'))) {
+                // Check account status after successful authentication
+                $this->checkAccountStatus();
+                RateLimiter::clear($this->throttleKey());
+                return;
+            }
+        }
+        
+        // If we reach here, authentication failed
+        RateLimiter::hit($this->throttleKey());
 
+        throw ValidationException::withMessages([
+            'login' => trans('auth.failed'),
+        ]);
+    }
+    
+    /**
+     * Check if authenticated user's account is active.
+     * 
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private function checkAccountStatus(): void
+    {
+        $user = Auth::user();
+        
+        if ($user->account && $user->account->account_status === 'inactive') {
+            Auth::logout();
+            
+            RateLimiter::hit($this->throttleKey());
+            
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'login' => 'Your account has been deactivated. Please contact administrator.',
             ]);
         }
-
-        RateLimiter::clear($this->throttleKey());
     }
 
     /**
@@ -80,6 +133,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->input('login')).'|'.$this->ip());
     }
-} 
+}

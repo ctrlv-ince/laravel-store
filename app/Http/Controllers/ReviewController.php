@@ -50,27 +50,51 @@ class ReviewController extends Controller
     public function store(Request $request, Item $item)
     {
         $validator = Validator::make($request->all(), [
-            'comment' => 'required|string',
-            'rating' => 'required|integer|min:1|max:5'
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'required|string|min:3|max:1000',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
         }
 
-        $review = Review::create([
-            'account_id' => Auth::user()->account->account_id,
-            'item_id' => $item->item_id,
-            'comment' => $request->comment,
-            'rating' => $request->rating,
-            'create_at' => now(),
-            'update_at' => now()
-        ]);
+        // Check if user has already reviewed this item
+        $existingReview = Review::where('account_id', Auth::user()->account->account_id)
+            ->where('item_id', $item->item_id)
+            ->first();
 
-        return response()->json([
-            'message' => 'Review posted successfully.',
-            'review' => $review->load('account.user')
-        ]);
+        if ($existingReview) {
+            // Update the existing review
+            $existingReview->update([
+                'rating' => $request->rating,
+                'comment' => $request->comment,
+                'create_at' => now(),
+                'update_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Your review has been updated!'
+            ]);
+        } else {
+            // Create a new review
+            Review::create([
+                'account_id' => Auth::user()->account->account_id,
+                'item_id' => $item->item_id,
+                'rating' => $request->rating,
+                'comment' => $request->comment,
+                'create_at' => now(),
+                'update_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Your review has been submitted!'
+            ]);
+        }
     }
 
     /**
@@ -92,47 +116,17 @@ class ReviewController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Review $review)
+    public function update(Request $request, string $id)
     {
-        $validator = Validator::make($request->all(), [
-            'comment' => 'required|string',
-            'rating' => 'required|integer|min:1|max:5'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 422);
-        }
-
-        if ($review->account_id !== Auth::user()->account->account_id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $review->update([
-            'comment' => $request->comment,
-            'rating' => $request->rating,
-            'update_at' => now()
-        ]);
-
-        return response()->json([
-            'message' => 'Review updated successfully.',
-            'review' => $review->load('account.user')
-        ]);
+        //
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Review $review)
+    public function destroy(string $id)
     {
-        // Only admin or the review owner can delete
-        if (Auth::user()->account->role !== 'admin' && 
-            $review->account_id !== Auth::user()->account->account_id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $review->delete();
-
-        return response()->json(['message' => 'Review deleted successfully.']);
+        //
     }
 
     public function itemReviews(Item $item)

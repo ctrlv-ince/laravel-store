@@ -20,8 +20,11 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
+            UsersTableSeeder::class,
+            AccountsTableSeeder::class,
             GroupSeeder::class,
             ItemSeeder::class,
+            ReviewsTableSeeder::class,
         ]);
     }
 }

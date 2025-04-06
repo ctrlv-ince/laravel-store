@@ -25,6 +25,16 @@ class Account extends Model
         'password'
     ];
 
+    /**
+     * Check if the account has admin role
+     *
+     * @return bool
+     */
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');

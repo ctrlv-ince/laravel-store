@@ -113,7 +113,12 @@
                     <span class="info-label">Order ID:</span> #{{ $order->order_id }}
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Date:</span> {{ $order->date_ordered->format('M d, Y H:i') }}
+                    <span class="info-label">Date:</span> 
+                    @if(is_string($order->date_ordered))
+                        {{ \Carbon\Carbon::parse($order->date_ordered)->format('M d, Y H:i') }}
+                    @else
+                        {{ $order->date_ordered->format('M d, Y H:i') }}
+                    @endif
                 </div>
                 <div class="info-item">
                     <span class="info-label">Status:</span>
@@ -153,16 +158,16 @@
                         <div>{{ $item->item->item_name }}</div>
                         <div style="font-size: 12px; color: #718096;">{{ $item->item->item_description }}</div>
                     </td>
-                    <td>₱{{ number_format($item->item->price, 2) }}</td>
+                    <td>P{{ number_format($item->item->price, 2) }}</td>
                     <td>{{ $item->quantity }}</td>
-                    <td>₱{{ number_format($item->item->price * $item->quantity, 2) }}</td>
+                    <td>P{{ number_format($item->item->price * $item->quantity, 2) }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
 
         <div class="total">
-            Total Amount: ₱{{ number_format($order->total_amount, 2) }}
+            Total Amount: P{{ number_format($order->total_amount, 2) }}
         </div>
 
         <div class="footer">

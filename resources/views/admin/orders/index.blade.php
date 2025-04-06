@@ -1,0 +1,284 @@
+@extends('layouts.app')
+
+@section('header')
+<div class="flex items-center">
+    <i class="fas fa-shopping-basket text-green-400 mr-2 text-xl"></i>
+    <span class="text-xl font-semibold">Order Management</span>
+</div>
+@endsection
+
+@section('content')
+<div class="py-12">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="bg-gray-800 overflow-hidden shadow-xl rounded-lg">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-white mb-6 border-b border-gray-700 pb-3">Customer Orders</h2>
+                
+                @if(session('success'))
+                <div class="bg-green-600 text-white p-4 mb-6 rounded-lg shadow-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                </div>
+                @endif
+                
+                @if(session('error'))
+                <div class="bg-red-600 text-white p-4 mb-6 rounded-lg shadow-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                </div>
+                @endif
+                
+                @if(session('info'))
+                <div class="bg-blue-600 text-white p-4 mb-6 rounded-lg shadow-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <span>{{ session('info') }}</span>
+                    </div>
+                </div>
+                @endif
+                
+                <div class="bg-gray-900 p-4 mb-6 rounded-lg text-gray-300 shadow-inner">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+                        <p>Order management allows you to track and update customer orders. Click on an order ID to view detailed information.</p>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table id="orders-table" class="min-w-full divide-y divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Order ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Customer</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Items</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <!-- Table content will be populated by DataTables -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto mt-6 px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg border-l-4 border-blue-500">
+            <div class="flex items-center text-white mb-2">
+                <i class="fas fa-question-circle text-blue-400 mr-2"></i>
+                <h3 class="font-semibold">Need Help?</h3>
+            </div>
+            <p class="text-gray-300 text-sm">For assistance with order processing, please refer to the admin documentation or contact technical support.</p>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg border-l-4 border-yellow-500">
+            <div class="flex items-center text-white mb-2">
+                <i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>
+                <h3 class="font-semibold">Order Updates</h3>
+            </div>
+            <p class="text-gray-300 text-sm">Updating an order's status will automatically notify the customer via email about their order progress.</p>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg border-l-4 border-green-500">
+            <div class="flex items-center text-white mb-2">
+                <i class="fas fa-chart-line text-green-400 mr-2"></i>
+                <h3 class="font-semibold">Order Statistics</h3>
+            </div>
+            <p class="text-gray-300 text-sm">View detailed reports and statistics about orders by visiting the Dashboard section of the admin panel.</p>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.dataTables.min.css">
+
+<!-- jQuery if not already included -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+
+<style>
+    /* Custom DataTable styling for better readability */
+    #orders-table {
+        color: white;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    #orders-table thead th {
+        background-color: #1e293b; /* darker blue-gray */
+        color: white;
+        font-weight: bold;
+        padding: 10px;
+        border-bottom: 2px solid #4b5563;
+    }
+    
+    #orders-table tbody tr {
+        background-color: #1f2937; /* dark blue-gray */
+    }
+    
+    #orders-table tbody tr:nth-child(even) {
+        background-color: #111827; /* darker for alternating rows */
+    }
+    
+    #orders-table tbody tr:hover {
+        background-color: #374151; /* highlight on hover */
+    }
+    
+    #orders-table td {
+        padding: 12px 10px;
+        font-size: 14px;
+        border-bottom: 1px solid #4b5563;
+    }
+    
+    /* Status badges styling */
+    .badge-pending {
+        background-color: #f59e0b;
+        color: black;
+        padding: 5px 10px;
+        border-radius: 9999px;
+        font-weight: bold;
+    }
+    
+    .badge-completed {
+        background-color: #10b981;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 9999px;
+        font-weight: bold;
+    }
+    
+    /* Pagination styling */
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        color: white !important;
+        background-color: #374151;
+        border-radius: 4px;
+        margin: 2px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    /* Search box styling */
+    .dataTables_wrapper .dataTables_filter input {
+        background-color: #1f2937;
+        color: white;
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+        padding: 5px 10px;
+        margin-left: 5px;
+    }
+    
+    /* Action buttons styling */
+    .btn-view, .btn-edit {
+        display: inline-block;
+        padding: 5px 10px;
+        margin: 2px;
+        border-radius: 4px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    
+    .btn-view {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-edit {
+        background-color: #6366f1;
+        color: white;
+    }
+    
+    .btn-view:hover, .btn-edit:hover {
+        opacity: 0.9;
+    }
+    
+    /* DataTable info and length styling */
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info {
+        color: #d1d5db !important;
+        margin-bottom: 10px;
+    }
+    
+    .dataTables_wrapper .dataTables_length select {
+        background-color: #1f2937;
+        color: white;
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+        padding: 5px;
+    }
+</style>
+
+<script>
+$(document).ready(function() {
+    $('#orders-table').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: true,
+        ajax: "{{ route('admin.orders.index') }}",
+        columns: [
+            { data: 'order_id', name: 'order_id' },
+            { data: 'customer', name: 'account.user.first_name' },
+            { data: 'date', name: 'date_ordered' },
+            { data: 'items', name: 'items', orderable: false, searchable: false },
+            { 
+                data: 'total_amount', 
+                name: 'total_amount',
+                render: function(data) {
+                    return '₱' + parseFloat(data).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                } 
+            },
+            { 
+                data: 'status', 
+                name: 'status',
+                render: function(data) {
+                    if (data === 'completed') {
+                        return '<span class="badge-completed">Completed</span>';
+                    } else {
+                        return '<span class="badge-pending">Pending</span>';
+                    }
+                }
+            },
+            { 
+                data: 'actions', 
+                name: 'actions', 
+                orderable: false, 
+                searchable: false,
+                render: function(data, type, row) {
+                    return '<a href="/admin/orders/' + row.order_id + '" class="btn-view">View</a> ' +
+                           '<a href="/admin/orders/' + row.order_id + '/edit" class="btn-edit">Edit</a>';
+                }
+            }
+        ],
+        order: [[0, 'desc']],
+        language: {
+            processing: '<div class="flex justify-center"><i class="fas fa-spinner fa-spin fa-2x text-blue-500"></i></div>'
+        }
+    });
+});
+</script>
+@endpush
+@endsection 

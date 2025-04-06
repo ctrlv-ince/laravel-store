@@ -13,6 +13,9 @@
             <p class="mt-2 text-center text-sm text-gray-400">
                 Sign in to your account
             </p>
+            <p class="mt-1 text-center text-xs text-gray-500">
+                You can log in using your email address or username
+            </p>
         </div>
 
         @if (session('status'))
@@ -21,15 +24,27 @@
             </div>
         @endif
 
+        @if (session('message'))
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                <span class="block sm:inline">{{ session('message') }}</span>
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <span class="block sm:inline">{{ session('error') }}</span>
+            </div>
+        @endif
+
         <form class="mt-8 space-y-6" action="{{ route('login') }}" method="POST">
             @csrf
             <div class="rounded-md shadow-sm -space-y-px">
                 <div>
-                    <label for="email" class="sr-only">Email address</label>
-                    <input id="email" name="email" type="email" required 
+                    <label for="login" class="sr-only">Email or Username</label>
+                    <input id="login" name="login" type="text" required 
                            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-                           placeholder="Email address" value="{{ old('email') }}">
-                    @error('email')
+                           placeholder="Email or Username" value="{{ old('login') }}">
+                    @error('login')
                         <span class="text-red-500 text-xs">{{ $message }}</span>
                     @enderror
                 </div>

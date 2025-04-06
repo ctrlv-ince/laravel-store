@@ -13,9 +13,13 @@ class Group extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'group_name'
+        'group_name',
+        'group_description'
     ];
 
+    /**
+     * Get items belonging to this group
+     */
     public function items()
     {
         return $this->belongsToMany(Item::class, 'item_groups', 'group_id', 'item_id');

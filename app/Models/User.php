@@ -91,6 +91,16 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the profile image from the related account
+     *
+     * @return string|null
+     */
+    public function getProfileImageAttribute()
+    {
+        return $this->account ? $this->account->profile_img : null;
+    }
+
+    /**
      * Send the email verification notification.
      *
      * @return void
@@ -98,5 +108,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendEmailVerificationNotification()
     {
         $this->notify(new VerifyEmail);
+    }
+
+    /**
+     * Get the email address that should be used for verification.
+     *
+     * @return string
+     */
+    public function getEmailForVerification()
+    {
+        return $this->email;
     }
 }

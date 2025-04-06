@@ -19,7 +19,7 @@
                             <div class="flex flex-col items-center">
                                 <div class="relative">
                                     <img class="h-32 w-32 rounded-full object-cover" 
-                                         src="{{ Auth::user()->account->profile_image ? asset('storage/' . Auth::user()->account->profile_image) : asset('images/default-avatar.png') }}" 
+                                         src="{{ Auth::user()->profile_image ? asset('storage/' . Auth::user()->profile_image) : asset('images/default-avatar.jpg') }}" 
                                          alt="{{ Auth::user()->first_name }}">
                                     <button type="button" 
                                             class="absolute bottom-0 right-0 bg-blue-500 rounded-full p-2 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -99,12 +99,12 @@
                                                class="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label for="profile_image" class="block text-sm font-medium text-gray-400">
+                                        <label for="profile_picture" class="block text-sm font-medium text-gray-400">
                                             Profile Image
                                         </label>
                                         <input type="file" 
-                                               name="profile_image" 
-                                               id="profile_image" 
+                                               name="profile_picture" 
+                                               id="profile_picture" 
                                                class="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     </div>
                                 </div>

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\VerifiesEmails;
 use Illuminate\Http\Request;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Http\RedirectResponse;
+use App\Models\User;
 
 class VerificationController extends Controller
 {
@@ -35,7 +38,7 @@ class VerificationController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('signed')->only('verify');
+        $this->middleware('auth')->except('verify');
         $this->middleware('throttle:6,1')->only('verify', 'resend');
     }
 
@@ -49,6 +52,48 @@ class VerificationController extends Controller
     {
         return $request->user()->hasVerifiedEmail()
             ? redirect($this->redirectPath())
-            : view('auth.verify');
+            : view('auth.verify-email');
+    }
+
+    /**
+     * Mark the authenticated user's email address as verified.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function verify(Request $request): RedirectResponse
+    {
+        try {
+            $user = User::findOrFail($request->route('id'));
+            
+            if ($user->hasVerifiedEmail()) {
+                return redirect($this->redirectPath())->with('message', 'Email already verified. You can now log in.');
+            }
+
+            if ($user->markEmailAsVerified()) {
+                event(new Verified($user));
+            }
+
+            return redirect($this->redirectPath())->with('message', 'Email verified successfully. You can now log in.');
+        } catch (\Exception $e) {
+            return redirect($this->redirectPath())->with('error', 'Error verifying email: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Resend the email verification notification.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function resend(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect($this->redirectPath());
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('status', 'verification-link-sent');
     }
 }

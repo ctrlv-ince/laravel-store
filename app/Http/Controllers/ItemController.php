@@ -3,49 +3,93 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
-use App\Models\ItemImage;
 use App\Models\Group;
+use App\Models\ItemImage;
+use App\Models\Inventory;
 use App\Imports\ItemsImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Str;
 
 class ItemController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the items.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\View\View
      */
     public function index(Request $request)
     {
-        if ($request->ajax()) {
-            $items = Item::with(['images', 'groups', 'inventory']);
-            
-            return DataTables::of($items)
-                ->addColumn('primary_image', function($item) {
-                    $image = $item->images()->where('is_primary', true)->first();
-                    return $image ? asset('storage/' . $image->image_path) : null;
-                })
-                ->addColumn('stock', function($item) {
-                    return $item->inventory ? $item->inventory->quantity : 0;
-                })
-                ->addColumn('groups', function($item) {
-                    return $item->groups->pluck('group_name')->implode(', ');
-                })
-                ->addColumn('action', function($item) {
-                    return view('items.actions', compact('item'))->render();
-                })
-                ->rawColumns(['action'])
-                ->make(true);
+        $query = Item::with(['images', 'groups', 'inventory']);
+
+        // Handle search
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('item_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('item_description', 'like', "%{$searchTerm}%");
+            });
         }
 
+        // Handle price filtering
+        if ($request->has('min_price') && $request->input('min_price') !== null && $request->input('min_price') !== '') {
+            $query->where('price', '>=', (float)$request->input('min_price'));
+        }
+
+        if ($request->has('max_price') && $request->input('max_price') !== null && $request->input('max_price') !== '') {
+            $query->where('price', '<=', (float)$request->input('max_price'));
+        }
+
+        // Handle category filtering
+        if ($request->has('groups')) {
+            $query->whereHas('groups', function($q) use ($request) {
+                $q->whereIn('groups.group_id', $request->input('groups'));
+            });
+        }
+
+        // Get all groups for the filter
         $groups = Group::all();
-        return view('items.index', compact('groups'));
+        
+        // Paginate the results
+        $items = $query->paginate(12);
+
+        return view('items.index', compact('items', 'groups'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Display the specified item.
+     *
+     * @param  \App\Models\Item  $item
+     * @return \Illuminate\View\View
+     */
+    public function show(Item $item)
+    {
+        $item->load(['images', 'groups', 'inventory']);
+        
+        // Get related items from the same group
+        $relatedItems = collect();
+        if ($item->groups->isNotEmpty()) {
+            $firstGroup = $item->groups->first();
+            $relatedItems = Item::whereHas('groups', function($q) use ($firstGroup) {
+                    $q->where('groups.group_id', $firstGroup->group_id);
+                })
+                ->where('item_id', '!=', $item->item_id)
+                ->with('images')
+                ->limit(4)
+                ->get();
+        }
+        
+        return view('items.show', compact('item', 'relatedItems'));
+    }
+
+    /**
+     * Show the form for creating a new item.
+     *
+     * @return \Illuminate\View\View
      */
     public function create()
     {
@@ -54,42 +98,44 @@ class ItemController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created item in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'item_name' => 'required|unique:items|max:100',
+        $request->validate([
+            'item_name' => 'required|string|max:255',
+            'item_description' => 'required|string',
             'price' => 'required|numeric|min:0',
-            'item_description' => 'required',
-            'quantity' => 'required|integer|min:0',
             'groups' => 'required|array',
             'groups.*' => 'exists:groups,group_id',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+            'quantity' => 'required|integer|min:0',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
+        // Create the item
         $item = Item::create([
             'item_name' => $request->item_name,
-            'price' => $request->price,
             'item_description' => $request->item_description,
-            'date_added' => now()
+            'price' => $request->price,
+            'date_added' => now(),
         ]);
 
+        // Create inventory record
         $item->inventory()->create([
             'quantity' => $request->quantity
         ]);
 
+        // Attach groups
         $item->groups()->attach($request->groups);
 
+        // Handle image uploads
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $image) {
                 $path = $image->store('items', 'public');
+                
                 $item->images()->create([
                     'image_path' => $path,
                     'is_primary' => $index === 0,
@@ -103,16 +149,10 @@ class ItemController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Item $item)
-    {
-        $item->load(['images', 'groups', 'inventory', 'reviews.account.user']);
-        return view('items.show', compact('item'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
+     * Show the form for editing the specified item.
+     *
+     * @param  \App\Models\Item  $item
+     * @return \Illuminate\View\View
      */
     public function edit(Item $item)
     {
@@ -122,70 +162,89 @@ class ItemController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified item in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Item  $item
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, Item $item)
     {
-        $validator = Validator::make($request->all(), [
-            'item_name' => 'required|max:100|unique:items,item_name,' . $item->item_id . ',item_id',
+        $request->validate([
+            'item_name' => 'required|string|max:255',
+            'item_description' => 'required|string',
             'price' => 'required|numeric|min:0',
-            'item_description' => 'required',
-            'quantity' => 'required|integer|min:0',
             'groups' => 'required|array',
             'groups.*' => 'exists:groups,group_id',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+            'quantity' => 'required|integer|min:0',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
+        // Update the item
         $item->update([
             'item_name' => $request->item_name,
+            'item_description' => $request->item_description,
             'price' => $request->price,
-            'item_description' => $request->item_description
         ]);
 
-        $item->inventory()->update([
-            'quantity' => $request->quantity
-        ]);
+        // Update inventory
+        if ($item->inventory) {
+            $item->inventory->update([
+                'quantity' => $request->quantity,
+            ]);
+        } else {
+            $item->inventory()->create([
+                'quantity' => $request->quantity
+            ]);
+        }
 
+        // Update groups
         $item->groups()->sync($request->groups);
 
+        // Handle image uploads
         if ($request->hasFile('images')) {
-            // Delete old images if replace_images is checked
-            if ($request->has('replace_images')) {
-                foreach ($item->images as $image) {
-                    Storage::disk('public')->delete($image->image_path);
-                }
-                $item->images()->delete();
-            }
-
             foreach ($request->file('images') as $index => $image) {
                 $path = $image->store('items', 'public');
+                
                 $item->images()->create([
                     'image_path' => $path,
-                    'is_primary' => $index === 0 && $request->has('replace_images'),
+                    'is_primary' => $index === 0 && $item->images->isEmpty(),
                     'uploaded_at' => now()
                 ]);
             }
         }
 
-        return redirect()->route('items.index')
+        // Handle image deletions
+        if ($request->has('delete_images')) {
+            foreach ($request->delete_images as $image_id) {
+                $image = ItemImage::find($image_id);
+                if ($image && $image->item_id === $item->item_id) {
+                    // Delete the file from storage
+                    Storage::disk('public')->delete($image->image_path);
+                    // Delete the record
+                    $image->delete();
+                }
+            }
+        }
+
+        return redirect()->route('items.show', $item)
             ->with('success', 'Item updated successfully.');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified item from storage.
+     *
+     * @param  \App\Models\Item  $item
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Item $item)
     {
+        // Delete associated images from storage
         foreach ($item->images as $image) {
             Storage::disk('public')->delete($image->image_path);
         }
-        
+
+        // Model relationships with cascading deletes should handle the DB cleanup
         $item->delete();
 
         return redirect()->route('items.index')
