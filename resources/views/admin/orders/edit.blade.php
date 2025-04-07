@@ -54,14 +54,14 @@
                                     <span class="text-gray-400">Current Status:</span>
                                     <span class="ml-2 text-xs px-2 py-1 rounded-full
                                         @if($order->status == 'pending') bg-yellow-500 text-white
-                                        @elseif($order->status == 'processing') bg-blue-500 text-white
+                                        @elseif($order->status == 'shipped') bg-blue-500 text-white
+                                        @elseif($order->status == 'for_confirm') bg-purple-500 text-white
                                         @elseif($order->status == 'completed') bg-green-500 text-white
                                         @elseif($order->status == 'cancelled') bg-red-500 text-white
-                                        @elseif($order->status == 'refunded') bg-purple-500 text-white
                                         @else bg-gray-500 text-white
                                         @endif
                                     ">
-                                        {{ ucfirst($order->status ?? 'Unknown') }}
+                                        {{ ucfirst(str_replace('_', ' ', $order->status ?? 'Unknown')) }}
                                     </span>
                                 </div>
                             </div>
@@ -97,7 +97,7 @@
                 </div>
                 @endif
                 
-                <form action="{{ route('admin.orders.update', $order->order_id) }}" method="POST">
+                <form action="{{ route('admin.orders.update', $order->order_id) }}" method="POST" id="updateOrderForm">
                     @csrf
                     @method('PUT')
                     
@@ -106,7 +106,7 @@
                         <select name="status" id="status" class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             @foreach($statuses as $status)
                             <option value="{{ $status }}" {{ $order->status == $status ? 'selected' : '' }}>
-                                {{ ucfirst($status) }}
+                                {{ ucfirst(str_replace('_', ' ', $status)) }}
                             </option>
                             @endforeach
                         </select>
@@ -180,4 +180,76 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('updateOrderForm');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading state
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+        submitButton.disabled = true;
+        
+        // Submit the form
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Reset button state
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+            
+            if (data.success) {
+                // Trigger refresh of orders table
+                window.dispatchEvent(new CustomEvent('orderStatusUpdated'));
+                
+                // Show success message
+                const successMessage = document.createElement('div');
+                successMessage.className = 'bg-green-600 text-white p-4 mb-6 rounded-lg shadow-md';
+                successMessage.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>${data.message}</span>
+                    </div>
+                `;
+                form.parentElement.insertBefore(successMessage, form);
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = "{{ route('admin.orders.index') }}";
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Failed to update order status');
+            }
+        })
+        .catch(error => {
+            // Reset button state
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+            
+            // Show error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'bg-red-600 text-white p-4 mb-6 rounded-lg shadow-md';
+            errorMessage.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span>${error.message}</span>
+                </div>
+            `;
+            form.parentElement.insertBefore(errorMessage, form);
+        });
+    });
+});
+</script>
+@endpush
 @endsection 

@@ -78,34 +78,56 @@
         <div class="content">
             <p>Dear {{ $order->account->user->first_name ?? 'Customer' }},</p>
             
-            <p>Thank you for your order! We're pleased to confirm that we've received your order.</p>
+            <p>Thank you for your order! We're pleased to confirm that we've received your order #{{ $order->order_id }}.</p>
             
             <div class="order-details">
                 <div class="order-header">
                     <div>Order #{{ $order->order_id }}</div>
-                    <div>Date: {{ $order->order_date->format('M d, Y') }}</div>
+                    <div>Date: {{ $order->date_ordered ? $order->date_ordered->format('M d, Y H:i') : 'N/A' }}</div>
+                    <div>Status: {{ ucfirst(str_replace('_', ' ', $order->status)) }}</div>
                 </div>
                 
                 <div class="order-items">
-                    @foreach($order->orderItems as $item)
-                    <div class="order-item">
-                        <div><strong>{{ $item->item->item_name }}</strong></div>
-                        <div>Quantity: {{ $item->quantity }}</div>
-                        <div>Price: ₱{{ number_format($item->price, 2) }}</div>
-                        <div>Total: ₱{{ number_format($item->price * $item->quantity, 2) }}</div>
-                    </div>
-                    @endforeach
-                </div>
-                
-                <div class="order-total">
-                    Total: ₱{{ number_format($order->total_amount, 2) }}
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="background-color: #f2f2f2;">
+                            <tr>
+                                <th style="text-align: left; padding: 8px;">Item</th>
+                                <th style="text-align: right; padding: 8px;">Price</th>
+                                <th style="text-align: center; padding: 8px;">Quantity</th>
+                                <th style="text-align: right; padding: 8px;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($order->orderInfos as $item)
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                    <strong>{{ $item->item->item_name }}</strong>
+                                </td>
+                                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">₱{{ number_format($item->item->price, 2) }}</td>
+                                <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">{{ $item->quantity }}</td>
+                                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">₱{{ number_format($item->item->price * $item->quantity, 2) }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="text-align: right; padding: 8px; font-weight: bold;">Total:</td>
+                                <td style="text-align: right; padding: 8px; font-weight: bold;">₱{{ number_format($order->total_amount, 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
             
-            <p>Shipping Address: {{ $order->shipping_address }}</p>
-            <p>Payment Method: {{ ucfirst($order->payment_method) }}</p>
+            <div style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #4a86e8;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px;">Delivery Information</h3>
+                <p style="margin: 0;">Your order will be processed and shipped as soon as possible. You will receive a notification when your order has been shipped.</p>
+                <p style="margin: 5px 0 0 0;">Estimated delivery: 3-5 business days</p>
+            </div>
             
-            <p>If you have any questions about your order, please contact our customer service at customer-support@techstore.com.</p>
+            <p>A PDF copy of your receipt is attached to this email for your records.</p>
+            
+            <p>If you have any questions about your order, please contact our customer service at <a href="mailto:customer-support@techstore.com" style="color: #4a86e8;">customer-support@techstore.com</a> or call us at (123) 456-7890.</p>
             
             <p>Thank you for shopping with us!</p>
         </div>

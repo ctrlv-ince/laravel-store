@@ -50,14 +50,24 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // Log the remember value for debugging
+        \Illuminate\Support\Facades\Log::info('Remember me checkbox value:', [
+            'has_remember_field' => $this->has('remember'),
+            'remember_value' => $this->input('remember'),
+            'boolean_value' => $this->boolean('remember')
+        ]);
+
         // Try to authenticate with username from Account model
         $credentials = ['password' => $this->password];
         $loginField = $this->login;
         
+        // Set the remember value explicitly 
+        $remember = $this->boolean('remember');
+        
         // First attempt - try by email
         if (filter_var($loginField, FILTER_VALIDATE_EMAIL)) {
             $credentials['email'] = $loginField;
-            if (Auth::attempt($credentials, $this->boolean('remember'))) {
+            if (Auth::attempt($credentials, $remember)) {
                 // Check account status after successful authentication
                 $this->checkAccountStatus();
                 RateLimiter::clear($this->throttleKey());
@@ -69,7 +79,7 @@ class LoginRequest extends FormRequest
         $account = \App\Models\Account::where('username', $loginField)->first();
         if ($account) {
             $user = $account->user;
-            if ($user && Auth::attempt(['email' => $user->email, 'password' => $this->password], $this->boolean('remember'))) {
+            if ($user && Auth::attempt(['email' => $user->email, 'password' => $this->password], $remember)) {
                 // Check account status after successful authentication
                 $this->checkAccountStatus();
                 RateLimiter::clear($this->throttleKey());

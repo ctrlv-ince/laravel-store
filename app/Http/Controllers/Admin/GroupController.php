@@ -92,23 +92,37 @@ class GroupController extends Controller
      */
     public function store(Request $request)
     {
+        Log::info('Category creation attempt', [
+            'request_data' => $request->all()
+        ]);
+
         $request->validate([
             'group_name' => 'required|string|max:255|unique:groups,group_name',
             'group_description' => 'nullable|string',
         ]);
 
         try {
-            Group::create([
+            $group = Group::create([
                 'group_name' => $request->group_name,
                 'group_description' => $request->group_description,
+            ]);
+
+            Log::info('Category created successfully', [
+                'group_id' => $group->group_id,
+                'group_name' => $group->group_name
             ]);
 
             return redirect()->route('admin.groups.index')
                 ->with('success', 'Category created successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to create category: ' . $e->getMessage());
+            Log::error('Failed to create category', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            
             return redirect()->route('admin.groups.index')
-                ->with('error', 'Failed to create category. Please try again.');
+                ->with('error', 'Failed to create category: ' . $e->getMessage());
         }
     }
 

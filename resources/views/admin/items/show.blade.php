@@ -25,27 +25,52 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                        @if($item->images->isNotEmpty())
+                        @if($item->images && $item->images->count() > 0)
                         <div class="mb-6">
                             <div id="product-gallery" class="mb-2">
-                                <img src="{{ asset('storage/' . $item->images->first()->image_path) }}" 
-                                    alt="{{ $item->item_name }}" 
-                                    class="w-full h-64 object-contain rounded-lg bg-gray-900">
+                                @php
+                                    $firstImage = $item->images->first();
+                                    $imageExists = $firstImage && Storage::disk('public')->exists($firstImage->image_path);
+                                @endphp
+                                
+                                @if($imageExists)
+                                    <img src="{{ asset('storage/' . $firstImage->image_path) }}" 
+                                        alt="{{ $item->item_name }}" 
+                                        class="w-full h-64 object-contain rounded-lg bg-gray-900">
+                                @else
+                                    <div class="w-full h-64 bg-gray-900 rounded-lg shadow-md flex flex-col items-center justify-center">
+                                        <i class="fas fa-exclamation-triangle text-yellow-500 text-3xl mb-2"></i>
+                                        <span class="text-gray-300">Image file not found</span>
+                                    </div>
+                                @endif
                             </div>
                             
-                            @if($item->images->count() > 1)
-                            <div class="grid grid-cols-5 gap-2">
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
                                 @foreach($item->images as $image)
-                                <div class="cursor-pointer">
-                                    <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                        alt="{{ $item->item_name }}" 
-                                        class="w-full h-16 object-cover rounded-lg hover:opacity-80 transition-opacity gallery-thumb"
-                                        data-img="{{ asset('storage/' . $image->image_path) }}">
-                                </div>
+                                    <div class="relative group">
+                                        @if(Storage::disk('public')->exists($image->image_path))
+                                            <img src="{{ asset('storage/' . $image->image_path) }}" 
+                                                 alt="{{ $item->item_name }}" 
+                                                 class="w-full h-32 object-cover rounded-lg shadow-md">
+                                        @else
+                                            <div class="w-full h-32 bg-gray-700 rounded-lg shadow-md flex flex-col items-center justify-center">
+                                                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl mb-2"></i>
+                                                <span class="text-xs text-gray-300">Missing Image</span>
+                                            </div>
+                                        @endif
+                                        
+                                        <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                                            <form action="{{ url('/admin/item-images/' . $image->image_id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded-lg transition-colors duration-150">
+                                                    <i class="fas fa-trash mr-1"></i> Remove
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
                                 @endforeach
                             </div>
-                            @endif
-                        </div>
                         @else
                         <div class="mb-6 flex items-center justify-center h-64 bg-gray-900 rounded-lg">
                             <span class="text-gray-500">
@@ -145,13 +170,24 @@
 
 @push('scripts')
 <script>
-    // Image gallery
-    const galleryThumbs = document.querySelectorAll('.gallery-thumb');
-    const mainImage = document.querySelector('#product-gallery img');
-    
-    galleryThumbs.forEach(thumb => {
-        thumb.addEventListener('click', function() {
-            mainImage.src = this.getAttribute('data-img');
+    // Image gallery - update main image when clicking thumbnails
+    document.addEventListener('DOMContentLoaded', function() {
+        const thumbnails = document.querySelectorAll('.gallery-thumb');
+        const mainImageContainer = document.querySelector('#product-gallery');
+        
+        // Set click handlers for valid image thumbnails
+        document.querySelectorAll('.w-full.h-32.object-cover').forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                const imageUrl = this.getAttribute('src');
+                if (imageUrl) {
+                    // Replace main image container content
+                    mainImageContainer.innerHTML = `
+                        <img src="${imageUrl}" 
+                             alt="{{ $item->item_name }}" 
+                             class="w-full h-64 object-contain rounded-lg bg-gray-900">
+                    `;
+                }
+            });
         });
     });
     

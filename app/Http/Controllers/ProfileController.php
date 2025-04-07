@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use App\Models\Account;
 
 class ProfileController extends Controller
 {
@@ -26,91 +29,68 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request)
     {
-        $user = $request->user();
+        $user = auth()->user();
         
         $validated = $request->validate([
-            'username' => ['required', 'string', 'max:50', 'unique:accounts,username,' . ($user->account ? $user->account->account_id : '0') . ',account_id'],
-            'first_name' => ['required', 'string', 'max:50'],
-            'last_name' => ['required', 'string', 'max:50'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->user_id.',user_id'],
-            'age' => ['required', 'integer', 'min:13'],
-            'sex' => ['required', 'in:Male,Female'],
-            'phone_number' => ['required', 'string', 'max:12', 'unique:users,phone_number,'.$user->user_id.',user_id'],
-            'profile_picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', Rule::unique('accounts')->ignore($user->account?->account_id, 'account_id')],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->user_id, 'user_id')],
+            'phone_number' => ['required', 'string', 'max:20'],
+            'age' => ['required', 'integer', 'min:1'],
+            'sex' => ['required', 'in:Male,Female,Other'],
+            'profile_img' => ['nullable', 'image', 'max:2048'] // 2MB max
         ]);
 
-        // Handle profile picture upload
-        if ($request->hasFile('profile_picture')) {
-            // Make sure the user has an account
-            $account = $user->account;
-            
-            if (!$account) {
-                // Create an account if it doesn't exist
-                $account = new \App\Models\Account([
-                    'user_id' => $user->user_id,
+        try {
+            DB::beginTransaction();
+
+            // Create or update account first
+            if (!$user->account) {
+                $account = Account::create([
                     'username' => $validated['username'],
                     'password' => $user->password,
                     'role' => 'user',
                     'account_status' => 'active',
-                    'profile_img' => ''
+                    'profile_img' => '' // Initialize with empty string
                 ]);
-                $account->save();
-                
-                Log::info('Created new account for existing user', [
-                    'user_id' => $user->user_id,
-                    'account_id' => $account->account_id
-                ]);
+                $user->account()->associate($account);
+            } else {
+                $user->account->username = $validated['username'];
             }
-            
-            // Delete old profile picture if it exists
-            if ($account->profile_img) {
-                Storage::disk('public')->delete($account->profile_img);
+
+            // Handle profile image upload
+            if ($request->hasFile('profile_img')) {
+                // Delete old profile image if it exists
+                if ($user->account && $user->account->profile_img) {
+                    Storage::disk('public')->delete($user->account->profile_img);
+                }
+
+                // Store the new image
+                $imagePath = $request->file('profile_img')->store('profile-images', 'public');
+                $user->account->profile_img = $imagePath;
             }
-            
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
-            $account->profile_img = $path;
-            $account->save();
-            
-            // Debug logging
-            Log::info('Profile picture updated on account', [
-                'user_id' => $user->user_id,
-                'account_id' => $account->account_id,
-                'path' => $path,
-                'exists' => Storage::disk('public')->exists($path)
-            ]);
-        } else {
-            // Debug logging for when no file is uploaded
-            Log::info('No profile picture in update', [
-                'has_file' => $request->hasFile('profile_picture'),
-                'all_files' => $request->allFiles()
-            ]);
-        }
-        
-        // Update or create account with username
-        $account = $user->account;
-        if (!$account) {
-            $account = new \App\Models\Account([
-                'user_id' => $user->user_id,
-                'username' => $validated['username'],
-                'password' => $user->password,
-                'role' => 'user',
-                'account_status' => 'active',
-                'profile_img' => ''
-            ]);
-            $account->save();
-        } else {
-            $account->username = $validated['username'];
-            $account->save();
-        }
 
-        // Remove the username from validated data before filling user model
-        $userValidated = collect($validated)->except(['username'])->toArray();
-        $user->fill($userValidated);
-        $user->save();
+            // Save the account changes
+            $user->account->save();
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+            // Update user information
+            $userValidated = collect($validated)
+                ->except(['username', 'profile_img'])
+                ->toArray();
+            $user->fill($userValidated);
+            $user->save();
+
+            DB::commit();
+
+            return redirect()->route('profile.edit')->with('status', 'profile-updated');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Profile update failed: ' . $e->getMessage());
+            return redirect()->route('profile.edit')->with('error', 'Failed to update profile. Please try again.');
+        }
     }
 
     /**

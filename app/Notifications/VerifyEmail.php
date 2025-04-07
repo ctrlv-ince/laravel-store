@@ -35,10 +35,14 @@ class VerifyEmail extends Notification implements ShouldQueue
         $verificationUrl = $this->verificationUrl($notifiable);
 
         return (new MailMessage)
-            ->subject(Lang::get('Verify Email Address'))
-            ->line(Lang::get('Please click the button below to verify your email address.'))
+            ->subject(Lang::get('Verify Your Email Address - Tech Store'))
+            ->greeting(Lang::get('Hello, ' . $notifiable->first_name . '!'))
+            ->line(Lang::get('Thank you for registering with Tech Store. We\'re excited to have you as part of our community.'))
+            ->line(Lang::get('Please click the button below to verify your email address and activate your account.'))
             ->action(Lang::get('Verify Email Address'), $verificationUrl)
-            ->line(Lang::get('If you did not create an account, no further action is required.'));
+            ->line(Lang::get('Once verified, you\'ll gain full access to our premium tech products and exclusive offers.'))
+            ->line(Lang::get('If you did not create an account, no further action is required.'))
+            ->salutation(Lang::get('Regards,<br>The Tech Store Team'));
     }
 
     /**

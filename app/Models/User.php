@@ -22,14 +22,11 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'first_name',
         'last_name',
-        'age',
-        'sex',
-        'phone_number',
         'email',
         'password',
-        'profile_picture',
-        'role',
-        'status'
+        'age',
+        'sex',
+        'phone_number'
     ];
 
     /**
@@ -57,7 +54,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function account()
     {
-        return $this->hasOne(Account::class, 'user_id');
+        return $this->hasOne(Account::class, 'user_id', 'user_id');
     }
 
     public function reviews()

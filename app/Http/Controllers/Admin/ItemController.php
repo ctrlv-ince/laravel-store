@@ -92,6 +92,15 @@ class ItemController extends Controller
      */
     public function store(Request $request)
     {
+        // Log incoming request data for debugging
+        Log::info('Product creation attempt', [
+            'request_data' => $request->except(['images']),
+            'has_images' => $request->hasFile('images'),
+            'images_count' => $request->hasFile('images') ? count($request->file('images')) : 0,
+            'file_upload_max_size' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size')
+        ]);
+
         $request->validate([
             'item_name' => 'required|string|max:255',
             'group_id' => 'nullable|exists:groups,group_id',
@@ -99,9 +108,24 @@ class ItemController extends Controller
             'quantity' => 'required|integer|min:0',
             'item_description' => 'required|string',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+        ], [
+            'item_name.required' => 'Product name is required',
+            'item_name.max' => 'Product name cannot exceed 255 characters',
+            'group_id.exists' => 'The selected category does not exist',
+            'price.required' => 'Price is required',
+            'price.numeric' => 'Price must be a number',
+            'price.min' => 'Price must be 0 or higher',
+            'quantity.required' => 'Quantity is required',
+            'quantity.integer' => 'Quantity must be a whole number',
+            'quantity.min' => 'Quantity must be 0 or higher',
+            'item_description.required' => 'Description is required',
+            'images.*.image' => 'The file must be an image',
+            'images.*.mimes' => 'Only JPEG, PNG, JPG, and GIF images are allowed',
+            'images.*.max' => 'Image size should not exceed 2MB',
         ]);
         
         try {
+            Log::info('Starting transaction for item creation');
             DB::beginTransaction();
             
             // Create item
@@ -111,37 +135,115 @@ class ItemController extends Controller
                 'item_description' => $request->item_description,
             ]);
             
+            Log::info('Item record created', [
+                'item_id' => $item->item_id,
+                'item_name' => $item->item_name
+            ]);
+            
             // Attach to group if provided
             if ($request->group_id) {
                 $item->groups()->attach($request->group_id);
+                Log::info('Group attached to item', [
+                    'item_id' => $item->item_id,
+                    'group_id' => $request->group_id
+                ]);
             }
             
             // Create inventory
-            Inventory::create([
+            $inventory = Inventory::create([
                 'item_id' => $item->item_id,
                 'quantity' => $request->quantity
             ]);
             
+            Log::info('Inventory record created', [
+                'item_id' => $item->item_id,
+                'inventory_id' => $inventory->item_id,
+                'quantity' => $inventory->quantity
+            ]);
+            
             // Handle images
             if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $file) {
-                    $path = $file->store('items', 'public');
-                    
-                    ItemImage::create([
-                        'item_id' => $item->item_id,
-                        'image_path' => $path
-                    ]);
+                $imageCount = count($request->file('images'));
+                Log::info('Processing images', ['count' => $imageCount]);
+                
+                foreach ($request->file('images') as $index => $file) {
+                    try {
+                        // Verify the file is valid
+                        if (!$file->isValid()) {
+                            Log::error('Invalid file upload', [
+                                'index' => $index,
+                                'error' => $file->getErrorMessage()
+                            ]);
+                            continue;
+                        }
+                        
+                        Log::info('Processing image', [
+                            'index' => $index, 
+                            'original_name' => $file->getClientOriginalName(),
+                            'mime_type' => $file->getMimeType(),
+                            'size' => $file->getSize(),
+                            'error' => $file->getError()
+                        ]);
+                        
+                        // Create directory if it doesn't exist
+                        $directory = 'public/items';
+                        if (!Storage::exists($directory)) {
+                            Storage::makeDirectory($directory);
+                            Log::info('Created directory', ['directory' => $directory]);
+                        }
+                        
+                        // Store the file
+                        $path = $file->store('items', 'public');
+                        Log::info('File stored at path', ['path' => $path]);
+                        
+                        if (!$path) {
+                            Log::error('Failed to store file', [
+                                'index' => $index,
+                                'original_name' => $file->getClientOriginalName()
+                            ]);
+                            continue;
+                        }
+                        
+                        // Verify the file exists after storing
+                        if (!Storage::disk('public')->exists($path)) {
+                            Log::error('File not found after storage', [
+                                'path' => $path
+                            ]);
+                        }
+                        
+                        $image = ItemImage::create([
+                            'item_id' => $item->item_id,
+                            'image_path' => $path
+                        ]);
+                        
+                        Log::info('Image stored successfully', [
+                            'image_id' => $image->image_id,
+                            'path' => $path
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to process image ' . $index, [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
                 }
+            } else {
+                Log::info('No images were provided');
             }
             
             DB::commit();
+            Log::info('Product created successfully', ['item_id' => $item->item_id]);
             
             return redirect()->route('admin.items.index')
                 ->with('success', 'Product created successfully!');
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating item: ' . $e->getMessage());
+            Log::error('Error creating item', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['images'])
+            ]);
             
             return redirect()->back()
                 ->with('error', 'An error occurred while creating the product: ' . $e->getMessage())
@@ -185,6 +287,14 @@ class ItemController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Log incoming request data for debugging
+        Log::info('Product update attempt', [
+            'item_id' => $id,
+            'request_data' => $request->except(['images']),
+            'has_images' => $request->hasFile('images'),
+            'images_count' => $request->hasFile('images') ? count($request->file('images')) : 0,
+        ]);
+        
         $request->validate([
             'item_name' => 'required|string|max:255',
             'item_description' => 'required|string',
@@ -192,12 +302,28 @@ class ItemController extends Controller
             'group_id' => 'nullable|exists:groups,group_id',
             'quantity' => 'required|integer|min:0',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+        ], [
+            'item_name.required' => 'Product name is required',
+            'item_name.max' => 'Product name cannot exceed 255 characters',
+            'group_id.exists' => 'The selected category does not exist',
+            'price.required' => 'Price is required',
+            'price.numeric' => 'Price must be a number',
+            'price.min' => 'Price must be 0 or higher',
+            'quantity.required' => 'Quantity is required',
+            'quantity.integer' => 'Quantity must be a whole number',
+            'quantity.min' => 'Quantity must be 0 or higher',
+            'item_description.required' => 'Description is required',
+            'images.*.image' => 'The file must be an image',
+            'images.*.mimes' => 'Only JPEG, PNG, JPG, and GIF images are allowed',
+            'images.*.max' => 'Image size should not exceed 2MB',
         ]);
         
         try {
+            Log::info('Starting transaction for item update', ['item_id' => $id]);
             DB::beginTransaction();
             
             $item = Item::findOrFail($id);
+            Log::info('Found item to update', ['item_id' => $item->item_id, 'name' => $item->item_name]);
             
             // Update item
             $item->update([
@@ -205,11 +331,15 @@ class ItemController extends Controller
                 'item_description' => $request->item_description,
                 'price' => $request->price
             ]);
+            Log::info('Item details updated', ['item_id' => $item->item_id]);
             
             // Update group (detach all and attach new if provided)
             $item->groups()->detach();
             if ($request->group_id) {
                 $item->groups()->attach($request->group_id);
+                Log::info('Group updated for item', ['item_id' => $item->item_id, 'group_id' => $request->group_id]);
+            } else {
+                Log::info('No group assigned to item', ['item_id' => $item->item_id]);
             }
             
             // Update inventory
@@ -217,44 +347,91 @@ class ItemController extends Controller
                 $item->inventory->update([
                     'quantity' => $request->quantity
                 ]);
+                Log::info('Inventory updated', ['item_id' => $item->item_id, 'quantity' => $request->quantity]);
             } else {
-                Inventory::create([
+                $inventory = Inventory::create([
                     'item_id' => $item->item_id,
                     'quantity' => $request->quantity
                 ]);
+                Log::info('New inventory created', ['item_id' => $item->item_id, 'quantity' => $inventory->quantity]);
             }
             
             // Handle new images
             if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $path = $image->store('items', 'public');
-                    
-                    ItemImage::create([
-                        'item_id' => $item->item_id,
-                        'image_path' => $path
-                    ]);
-                }
-            }
-            
-            // Handle deleted images
-            if ($request->has('delete_images')) {
-                foreach ($request->delete_images as $imageId) {
-                    $image = ItemImage::find($imageId);
-                    if ($image) {
-                        Storage::disk('public')->delete($image->image_path);
-                        $image->delete();
+                $imageCount = count($request->file('images'));
+                Log::info('Processing new images for update', ['count' => $imageCount, 'item_id' => $item->item_id]);
+                
+                foreach ($request->file('images') as $index => $file) {
+                    try {
+                        // Verify the file is valid
+                        if (!$file->isValid()) {
+                            Log::error('Invalid file upload during update', [
+                                'item_id' => $item->item_id,
+                                'index' => $index,
+                                'error' => $file->getErrorMessage()
+                            ]);
+                            continue;
+                        }
+                        
+                        Log::info('Processing image for update', [
+                            'item_id' => $item->item_id,
+                            'index' => $index, 
+                            'original_name' => $file->getClientOriginalName(),
+                            'mime_type' => $file->getMimeType(),
+                            'size' => $file->getSize(),
+                            'error' => $file->getError()
+                        ]);
+                        
+                        // Store the file
+                        $path = $file->store('items', 'public');
+                        Log::info('File stored at path during update', ['path' => $path]);
+                        
+                        if (!$path) {
+                            Log::error('Failed to store file during update', [
+                                'item_id' => $item->item_id,
+                                'index' => $index,
+                                'original_name' => $file->getClientOriginalName()
+                            ]);
+                            continue;
+                        }
+                        
+                        $image = ItemImage::create([
+                            'item_id' => $item->item_id,
+                            'image_path' => $path
+                        ]);
+                        
+                        Log::info('New image stored during update', [
+                            'item_id' => $item->item_id,
+                            'image_id' => $image->image_id,
+                            'path' => $path
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to process image during update', [
+                            'item_id' => $item->item_id,
+                            'index' => $index,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
                     }
                 }
+            } else {
+                Log::info('No new images provided for update', ['item_id' => $item->item_id]);
             }
             
             DB::commit();
+            Log::info('Product updated successfully', ['item_id' => $item->item_id]);
             
             return redirect()->route('admin.items.index')
                 ->with('success', 'Product updated successfully!');
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error updating item: ' . $e->getMessage());
+            Log::error('Error updating item', [
+                'item_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['images'])
+            ]);
             
             return redirect()->back()
                 ->with('error', 'An error occurred while updating the product: ' . $e->getMessage())
@@ -275,12 +452,9 @@ class ItemController extends Controller
 
             $item = Item::with('images')->findOrFail($id);
 
-            // Delete images from storage
-            foreach ($item->images as $image) {
-                Storage::disk('public')->delete($image->image_path);
-            }
+            // Don't delete images from storage during soft delete
+            // Just soft delete the item and its related models
 
-            // The item, images, and inventory will be deleted due to cascade delete in the database
             $item->delete();
 
             DB::commit();
@@ -346,14 +520,21 @@ class ItemController extends Controller
     {
         if ($request->ajax()) {
             $trashedItems = Item::onlyTrashed()
-                ->with(['groups', 'inventory', 'images'])
+                ->with(['groups', 'inventory'])
                 ->get();
+            
+            // Load images with withTrashed to include soft-deleted images
+            foreach ($trashedItems as $item) {
+                $item->load(['images' => function($query) {
+                    $query->withTrashed();
+                }]);
+            }
             
             return DataTables::of($trashedItems)
                 ->addColumn('image', function ($item) {
                     $image = $item->images->first();
-                    if ($image) {
-                        return '<img src="' . asset('storage/' . $image->image_path) . '" alt="' . $item->item_name . '" class="h-12 w-12 object-cover rounded-lg">';
+                    if ($image && Storage::disk('public')->exists($image->image_path)) {
+                        return '<img src="' . asset('storage/' . $image->image_path) . '" alt="' . $item->item_name . '" class="h-12 w-12 object-cover rounded-lg shadow-sm">';
                     }
                     return '<div class="h-12 w-12 bg-gray-700 rounded-lg flex items-center justify-center"><i class="fas fa-image text-gray-500"></i></div>';
                 })
@@ -365,11 +546,11 @@ class ItemController extends Controller
                     return $item->deleted_at->format('M d, Y H:i');
                 })
                 ->addColumn('action', function ($item) {
-                    $restoreBtn = '<button data-id="' . $item->item_id . '" class="bg-green-500 hover:bg-green-600 text-white text-xs p-1 rounded mr-1 restore-btn">
-                                <i class="fas fa-trash-restore"></i> Restore
+                    $restoreBtn = '<button data-id="' . $item->item_id . '" class="restore-btn mr-1">
+                                <i class="fas fa-trash-restore mr-1"></i> Restore
                             </button>';
-                    $deleteBtn = '<button data-id="' . $item->item_id . '" class="bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded force-delete-btn">
-                                <i class="fas fa-trash"></i> Delete Permanently
+                    $deleteBtn = '<button data-id="' . $item->item_id . '" class="force-delete-btn">
+                                <i class="fas fa-trash mr-1"></i> Delete
                             </button>';
                     return $restoreBtn . $deleteBtn;
                 })
@@ -394,8 +575,19 @@ class ItemController extends Controller
     public function restore($id)
     {
         try {
+            DB::beginTransaction();
+            
             $item = Item::onlyTrashed()->findOrFail($id);
+            
+            // Restore the item
             $item->restore();
+            
+            // Restore associated images
+            ItemImage::withTrashed()
+                ->where('item_id', $id)
+                ->restore();
+            
+            DB::commit();
             
             if (request()->ajax()) {
                 return response()->json([
@@ -407,6 +599,7 @@ class ItemController extends Controller
             return redirect()->route('admin.items.trash')
                 ->with('success', 'Product restored successfully.');
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Failed to restore product: ' . $e->getMessage());
             
             if (request()->ajax()) {
@@ -465,6 +658,51 @@ class ItemController extends Controller
             
             return redirect()->route('admin.items.trash')
                 ->with('error', 'Failed to permanently delete product. ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete an individual image from a product.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function deleteImage($id)
+    {
+        try {
+            // Log the incoming image ID for debugging
+            Log::info('Attempting to delete image with ID: ' . $id);
+            
+            $image = ItemImage::withTrashed()->findOrFail($id);
+            $itemId = $image->item_id;
+            
+            // Log the image data for debugging
+            Log::info('Found image:', [
+                'image_id' => $image->image_id,
+                'item_id' => $image->item_id,
+                'path' => $image->image_path
+            ]);
+            
+            // Check if file exists and delete it
+            if (Storage::disk('public')->exists($image->image_path)) {
+                Storage::disk('public')->delete($image->image_path);
+                Log::info('Deleted physical image file');
+            } else {
+                Log::info('Physical image file not found');
+            }
+            
+            // Force delete the image record
+            $image->forceDelete();
+            Log::info('Deleted image record from database');
+            
+            return redirect()->back()
+                ->with('success', 'Image removed successfully.');
+        } catch (\Exception $e) {
+            Log::error('Failed to delete image: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return redirect()->back()
+                ->with('error', 'Failed to delete image: ' . $e->getMessage());
         }
     }
 } 

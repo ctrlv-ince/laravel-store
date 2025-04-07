@@ -23,7 +23,7 @@ class AccountsTableSeeder extends Seeder
                 'username' => strtolower(str_replace(' ', '', $user->first_name . $user->last_name)),
                 'password' => $isAdmin ? Hash::make('admin123') : Hash::make('user123'),
                 'role' => $isAdmin ? 'admin' : 'user',
-                'profile_img' => 'default.jpg',
+                'profile_img' => 'default-avatar.jpg',
                 'account_status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),

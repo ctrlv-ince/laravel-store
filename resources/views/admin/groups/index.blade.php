@@ -76,7 +76,7 @@
             </button>
         </div>
         
-        <form id="category-form" method="POST">
+        <form id="category-form" method="POST" action="{{ route('admin.groups.store') }}">
             @csrf
             <div id="method-field"></div>
             

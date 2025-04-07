@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 use Dompdf\Dompdf;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -255,48 +256,72 @@ class OrderController extends Controller
             ], 422);
         }
 
-        // Check item availability
-        $item = Item::with('inventory')->find($request->item_id);
-        if (!$item->inventory || $item->inventory->quantity < $request->quantity) {
+        try {
+            DB::beginTransaction();
+
+            // Check item availability
+            $item = Item::with('inventory')->find($request->item_id);
+            if (!$item->inventory || $item->inventory->quantity < $request->quantity) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient stock for item: ' . $item->item_name
+                ], 422);
+            }
+
+            // Calculate total amount
+            $totalAmount = $item->price * $request->quantity;
+
+            // Create order
+            $order = Order::create([
+                'account_id' => Auth::user()->account->account_id,
+                'date_ordered' => now(),
+                'total_amount' => $totalAmount,
+                'status' => 'pending'
+            ]);
+
+            // Create order item and update inventory
+            OrderInfo::create([
+                'order_id' => $order->order_id,
+                'item_id' => $request->item_id,
+                'quantity' => $request->quantity
+            ]);
+
+            // Update inventory
+            $item->inventory->update([
+                'quantity' => $item->inventory->quantity - $request->quantity
+            ]);
+
+            // Send order confirmation email
+            $this->sendOrderConfirmationEmail($order);
+
+            DB::commit();
+
+            Log::info('Buy Now order placed successfully', [
+                'order_id' => $order->order_id,
+                'item_id' => $request->item_id,
+                'quantity' => $request->quantity
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order placed successfully',
+                'data' => [
+                    'order_id' => $order->order_id
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing Buy Now order', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient stock for item: ' . $item->item_name
-            ], 422);
+                'message' => 'An error occurred while processing your order: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Calculate total amount
-        $totalAmount = $item->price * $request->quantity;
-
-        // Create order
-        $order = Order::create([
-            'account_id' => Auth::user()->account->account_id,
-            'date_ordered' => now(),
-            'total_amount' => $totalAmount,
-            'status' => 'pending'
-        ]);
-
-        // Create order item and update inventory
-        OrderInfo::create([
-            'order_id' => $order->order_id,
-            'item_id' => $request->item_id,
-            'quantity' => $request->quantity
-        ]);
-
-        // Update inventory
-        $item->inventory->update([
-            'quantity' => $item->inventory->quantity - $request->quantity
-        ]);
-
-        // Send order confirmation email
-        $this->sendOrderConfirmationEmail($order);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Order placed successfully',
-            'data' => [
-                'order_id' => $order->order_id
-            ]
-        ]);
     }
 
     protected function sendOrderConfirmationEmail($order)
@@ -349,6 +374,7 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to send order confirmation email: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
+            throw $e; // Re-throw the exception to be handled by the caller
         }
     }
 

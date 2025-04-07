@@ -26,6 +26,20 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        
+        // Log successful login with remember value
+        \Illuminate\Support\Facades\Log::info('Login successful:', [
+            'user' => $request->user()->id,
+            'remember' => $request->boolean('remember')
+        ]);
+        
+        // If remember is checked, set a longer cookie expiration
+        if ($request->boolean('remember')) {
+            // Set the auth cookie expiration to a longer time period
+            // Laravel's remember me functionality typically sets this to 5 years
+            // but we can log that we handled the remember request
+            \Illuminate\Support\Facades\Log::info('Setting remember cookie');
+        }
 
         return redirect()->intended(RouteServiceProvider::HOME);
     }

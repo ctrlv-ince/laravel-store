@@ -13,6 +13,7 @@ class Inventory extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'item_id',
         'quantity'
     ];
 

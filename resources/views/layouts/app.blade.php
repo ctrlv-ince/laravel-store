@@ -23,35 +23,41 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Mobile menu toggle
-            const mobileMenuButton = document.querySelector('[aria-controls="mobile-menu"]');
+            const mobileMenuButton = document.querySelector('#mobile-menu-button');
             const mobileMenu = document.getElementById('mobile-menu');
             
             if (mobileMenuButton && mobileMenu) {
+                console.log('Mobile menu elements found');
                 mobileMenuButton.addEventListener('click', function () {
-                    const expanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
-                    mobileMenuButton.setAttribute('aria-expanded', !expanded);
+                    console.log('Mobile menu button clicked');
                     mobileMenu.classList.toggle('hidden');
                 });
+            } else {
+                console.error('Mobile menu elements not found:', mobileMenuButton, mobileMenu);
             }
             
-            // User dropdown toggle
+            // User dropdown toggle - improved version with debugging
             const userMenuButton = document.getElementById('user-menu-button');
-            const userMenu = userMenuButton?.nextElementSibling;
+            const userMenu = document.getElementById('user-dropdown-menu');
             
             if (userMenuButton && userMenu) {
-                userMenuButton.addEventListener('click', function () {
-                    const expanded = userMenuButton.getAttribute('aria-expanded') === 'true';
-                    userMenuButton.setAttribute('aria-expanded', !expanded);
+                console.log('Dropdown elements found successfully');
+                
+                userMenuButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Profile button clicked');
                     userMenu.classList.toggle('hidden');
                 });
                 
                 // Close dropdown when clicking outside
                 document.addEventListener('click', function (event) {
                     if (!userMenuButton.contains(event.target) && !userMenu.contains(event.target)) {
-                        userMenuButton.setAttribute('aria-expanded', 'false');
                         userMenu.classList.add('hidden');
                     }
                 });
+            } else {
+                console.error('Dropdown elements not found: Button:', userMenuButton, 'Menu:', userMenu);
             }
         });
     </script>
@@ -136,7 +142,7 @@
                         <div class="ml-3 relative">
                             <div>
                                 <button type="button" 
-                                        class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition duration-150 ease-in-out" 
+                                        class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition duration-150 ease-in-out hover:border-gray-300 cursor-pointer" 
                                         id="user-menu-button" 
                                         aria-expanded="false" 
                                         aria-haspopup="true">
@@ -146,7 +152,8 @@
                                 </button>
                             </div>
 
-                            <div class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-800 ring-1 ring-black ring-opacity-5" 
+                            <div id="user-dropdown-menu"
+                                 class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-800 ring-1 ring-black ring-opacity-5 z-50" 
                                  role="menu" 
                                  aria-orientation="vertical" 
                                  aria-labelledby="user-menu-button" 
@@ -174,6 +181,7 @@
                     <div class="-mr-2 flex items-center sm:hidden">
                         <button type="button" 
                                 class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:bg-gray-700 focus:text-white transition duration-150 ease-in-out" 
+                                id="mobile-menu-button"
                                 aria-controls="mobile-menu" 
                                 aria-expanded="false">
                             <span class="sr-only">Open main menu</span>

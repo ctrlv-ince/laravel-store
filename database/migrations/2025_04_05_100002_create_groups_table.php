@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('groups', function (Blueprint $table) {
             $table->id('group_id');
             $table->string('group_name', 50);
-            $table->string('group_description', 255);
+            $table->string('group_description', 255)->nullable();
             $table->timestamps();
         });
     }

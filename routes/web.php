@@ -18,6 +18,7 @@ use App\Http\Controllers\OrderController as UserOrderController;
 use App\Http\Controllers\ReviewController as UserReviewController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\WelcomeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,9 +31,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Test route for email
 Route::get('/test-email', function () {
@@ -126,6 +125,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::resource('users', UserController::class);
     Route::post('users/update-status', [UserController::class, 'updateStatus'])->name('users.updateStatus');
     Route::post('users/update-role', [UserController::class, 'updateRole'])->name('users.updateRole');
+    
+    // Create a very specific route for image deletion that won't conflict
+    Route::delete('item-images/{id}', [AdminItemController::class, 'deleteImage'])->name('items.delete-image');
+    
+    // Add a special route for deleting images from the edit page
+    Route::delete('edit-item-images/{id}', [AdminItemController::class, 'deleteImage'])->name('items.edit-delete-image');
     
     // Product Management - Custom routes first
     Route::get('items/trash', [AdminItemController::class, 'trash'])->name('items.trash');

@@ -19,6 +19,15 @@ class Order extends Model
         'status'
     ];
 
+    protected $casts = [
+        'date_ordered' => 'datetime',
+        'total_amount' => 'decimal:2'
+    ];
+
+    protected $dates = [
+        'date_ordered'
+    ];
+
     public function account()
     {
         return $this->belongsTo(Account::class, 'account_id');

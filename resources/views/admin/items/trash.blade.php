@@ -2,8 +2,8 @@
 
 @section('header')
 <div class="flex items-center">
-    <i class="fas fa-trash text-red-500 mr-2"></i>
-    Deleted Products
+    <i class="fas fa-trash text-red-400 mr-2 text-xl"></i>
+    <span class="text-xl font-semibold">Deleted Products</span>
 </div>
 @endsection
 
@@ -12,7 +12,7 @@
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Notification area -->
         <div id="notification-area" class="mb-4 hidden">
-            <div id="notification" class="p-4 rounded shadow-md flex items-center">
+            <div id="notification" class="px-4 py-3 rounded-lg shadow-md flex items-center">
                 <span class="mr-2 text-lg">
                     <i id="notification-icon" class="fas"></i>
                 </span>
@@ -20,52 +20,60 @@
             </div>
         </div>
         
-        <div class="bg-gray-800 overflow-hidden shadow-sm rounded-lg">
+        <div class="bg-gray-800 overflow-hidden shadow-xl rounded-lg">
             <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-semibold text-white">Deleted Products</h2>
-                    <a href="{{ route('admin.items.index') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                <h2 class="text-2xl font-bold text-white mb-6 border-b border-gray-700 pb-3">Trash - Deleted Products</h2>
+                
+                <div class="flex items-center mb-6">
+                    <a href="{{ route('admin.items.index') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors duration-200">
                         <i class="fas fa-arrow-left mr-2"></i> Back to Products
                     </a>
                 </div>
                 
                 @if(session('success'))
-                <div class="bg-green-500 text-white p-4 mb-6 rounded">
-                    {{ session('success') }}
+                <div class="bg-green-600 text-white p-4 mb-6 rounded-lg shadow-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>{{ session('success') }}</span>
+                    </div>
                 </div>
                 @endif
                 
                 @if(session('error'))
-                <div class="bg-red-500 text-white p-4 mb-6 rounded">
-                    {{ session('error') }}
+                <div class="bg-red-600 text-white p-4 mb-6 rounded-lg shadow-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>{{ session('error') }}</span>
+                    </div>
                 </div>
                 @endif
                 
-                <!-- Debug info about trashed items -->
-                <div class="bg-gray-700 p-4 mb-6 rounded">
-                    <p class="text-white">Found {{ $trashedCount ?? 0 }} deleted products.</p>
+                <!-- Info box about trashed items -->
+                <div class="bg-gray-900 p-4 mb-6 rounded-lg text-gray-300 shadow-inner">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+                        <p>Found {{ $trashedCount ?? 0 }} deleted products. You can restore items or permanently delete them.</p>
+                    </div>
                     @if(($trashedCount ?? 0) == 0)
-                        <p class="text-gray-300 mt-2">No deleted products to display. When you delete products, they will appear here.</p>
+                        <p class="mt-2 ml-6 text-gray-400">No deleted products to display. When you delete products, they will appear here.</p>
                     @endif
                 </div>
                 
-                <div class="bg-gray-900 rounded-lg overflow-hidden shadow">
-                    <div class="overflow-x-auto">
-                        <table id="trashed-items-table" class="min-w-full divide-y divide-gray-700">
-                            <thead class="bg-gray-700">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Image</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Deleted At</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-gray-800 divide-y divide-gray-700">
-                                <!-- Table content will be populated by DataTables -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="overflow-x-auto">
+                    <table id="trashed-items-table" class="min-w-full divide-y divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Image</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Deleted At</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <!-- Table content will be populated by DataTables -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -73,17 +81,17 @@
 </div>
 
 <!-- Force Delete Confirmation Modal -->
-<div id="force-delete-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-        <h3 class="text-xl font-semibold text-white mb-4">Confirm Permanent Deletion</h3>
+<div id="force-delete-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center hidden">
+    <div class="bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-2xl border border-gray-700">
+        <h3 class="text-xl font-bold text-white mb-4 border-b border-gray-700 pb-2">Confirm Permanent Deletion</h3>
         <p class="text-gray-300 mb-2">Are you sure you want to permanently delete this product?</p>
-        <p class="text-red-500 mb-6"><i class="fas fa-exclamation-triangle mr-2"></i>This action cannot be undone!</p>
-        <div class="flex justify-end space-x-4">
-            <button id="cancel-force-delete" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+        <p class="text-red-400 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i>This action cannot be undone!</p>
+        <div class="flex justify-end">
+            <button id="cancel-force-delete" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg mr-2 transition-colors duration-200">
                 Cancel
             </button>
-            <button id="confirm-force-delete" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                Delete Permanently
+            <button id="confirm-force-delete" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center">
+                <i class="fas fa-trash mr-2"></i> Delete Permanently
             </button>
         </div>
     </div>
@@ -100,40 +108,109 @@
 <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
 
 <style>
-    /* Custom DataTables styling */
+    /* Custom DataTable styling for better readability */
+    #trashed-items-table {
+        color: white;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    #trashed-items-table thead th {
+        background-color: #1e293b; /* darker blue-gray */
+        color: white;
+        font-weight: bold;
+        padding: 10px;
+        border-bottom: 2px solid #4b5563;
+    }
+    
+    #trashed-items-table tbody tr {
+        background-color: #1f2937; /* dark blue-gray */
+    }
+    
+    #trashed-items-table tbody tr:nth-child(even) {
+        background-color: #111827; /* darker for alternating rows */
+    }
+    
+    #trashed-items-table tbody tr:hover {
+        background-color: #374151; /* highlight on hover */
+    }
+    
+    #trashed-items-table td {
+        padding: 12px 10px;
+        font-size: 14px;
+        border-bottom: 1px solid #4b5563;
+    }
+    
+    /* Pagination styling */
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        color: white !important;
+        background-color: #374151;
+        border-radius: 4px;
+        margin: 2px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    /* Search box styling */
+    .dataTables_wrapper .dataTables_filter input {
+        background-color: #1f2937;
+        color: white;
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+        padding: 5px 10px;
+        margin-left: 5px;
+    }
+    
+    /* Action buttons styling */
+    .restore-btn, .force-delete-btn {
+        display: inline-block;
+        padding: 5px 10px;
+        margin: 2px;
+        border-radius: 4px;
+        font-weight: bold;
+        transition: background-color 0.2s;
+    }
+    
+    .restore-btn {
+        background-color: #10b981;
+        color: white;
+    }
+    
+    .restore-btn:hover {
+        background-color: #059669;
+    }
+    
+    .force-delete-btn {
+        background-color: #ef4444;
+        color: white;
+    }
+    
+    .force-delete-btn:hover {
+        background-color: #dc2626;
+    }
+    
+    /* DataTable info and length styling */
     .dataTables_wrapper .dataTables_length, 
     .dataTables_wrapper .dataTables_filter, 
-    .dataTables_wrapper .dataTables_info, 
-    .dataTables_wrapper .dataTables_processing, 
-    .dataTables_wrapper .dataTables_paginate {
-        color: #cbd5e0 !important;
-        margin-bottom: 15px;
-        padding: 10px;
+    .dataTables_wrapper .dataTables_info {
+        color: #d1d5db !important;
+        margin-bottom: 10px;
     }
     
-    .dataTables_wrapper .dataTables_length select, 
-    .dataTables_wrapper .dataTables_filter input {
-        background-color: #2d3748;
+    .dataTables_wrapper .dataTables_length select {
+        background-color: #1f2937;
         color: white;
-        border: 1px solid #4a5568;
-        border-radius: 0.375rem;
-        padding: 0.5rem;
-        margin-left: 0.5rem;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
-        color: #cbd5e0 !important;
-        border: 1px solid transparent;
-        background-color: #2d3748;
-        margin: 0 2px;
-        border-radius: 0.375rem;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current, 
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-        background: #4299e1 !important;
-        color: white !important;
-        border-color: #4299e1;
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+        padding: 5px;
     }
 </style>
 
@@ -153,12 +230,25 @@
             processing: true,
             serverSide: true,
             responsive: true,
-            ajax: "{{ route('admin.items.trash') }}",
+            ajax: {
+                url: "{{ route('admin.items.trash') }}",
+                error: function(xhr, error, thrown) {
+                    console.log('DataTables error:', error, thrown);
+                    console.log('XHR:', xhr.responseText);
+                }
+            },
             columns: [
                 { data: 'image', name: 'image', orderable: false, searchable: false },
                 { data: 'item_name', name: 'item_name' },
                 { data: 'category', name: 'category' },
-                { data: 'deleted_at', name: 'deleted_at' },
+                { 
+                    data: 'deleted_at', 
+                    name: 'deleted_at',
+                    render: function(data) {
+                        let date = new Date(data);
+                        return date.toLocaleString();
+                    }
+                },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ]
         });
@@ -244,19 +334,26 @@
             const notificationArea = $('#notification-area');
             const notificationMessage = $('#notification-message');
             
+            notification.removeClass('bg-green-600 bg-red-600');
+            notificationIcon.removeClass('fa-check-circle fa-times-circle');
+            
             if (type === 'success') {
-                notification.removeClass('bg-red-500').addClass('bg-green-500');
-                notificationIcon.removeClass('fa-times-circle').addClass('fa-check-circle');
+                notification.addClass('bg-green-600 text-white');
+                notificationIcon.addClass('fa-check-circle');
             } else {
-                notification.removeClass('bg-green-500').addClass('bg-red-500');
-                notificationIcon.removeClass('fa-check-circle').addClass('fa-times-circle');
+                notification.addClass('bg-red-600 text-white');
+                notificationIcon.addClass('fa-times-circle');
             }
             
             notificationMessage.text(message);
             notificationArea.removeClass('hidden').addClass('visible');
             
+            // Hide after 3 seconds
             setTimeout(function() {
-                notificationArea.removeClass('visible').addClass('hidden');
+                notificationArea.removeClass('visible');
+                setTimeout(function() {
+                    notificationArea.addClass('hidden');
+                }, 300);
             }, 3000);
         }
     });
