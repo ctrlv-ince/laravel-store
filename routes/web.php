@@ -19,6 +19,7 @@ use App\Http\Controllers\ReviewController as UserReviewController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\SearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -148,5 +149,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Review Management
     Route::resource('reviews', ReviewController::class)->only(['index', 'destroy']);
 });
+
+Route::get('/search', [SearchController::class, 'search'])->name('search');
 
 require __DIR__.'/auth.php';
