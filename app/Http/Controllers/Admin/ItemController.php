@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
-use App\Imports\ProductsImport;
+use App\Imports\ItemsImport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ItemController extends Controller
@@ -493,19 +493,44 @@ class ItemController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'import_file' => 'required|file|mimes:xlsx,xls,csv'
+            'import_file' => 'required|file|mimes:xlsx,xls'
         ]);
         
         try {
-            Excel::import(new ProductsImport, $request->file('import_file'));
+            Log::info('Starting Excel file import', [
+                'file_name' => $request->file('import_file')->getClientOriginalName(),
+                'file_size' => $request->file('import_file')->getSize(),
+                'mime_type' => $request->file('import_file')->getMimeType()
+            ]);
+            
+            // Set importing flag to prevent Scout indexing during import
+            $request->merge(['importing' => true]);
+            
+            $import = new ItemsImport;
+            Excel::import($import, $request->file('import_file'));
+            
+            $message = 'Items imported successfully.';
+            if ($import->failures()->isNotEmpty()) {
+                $message .= ' Some rows were skipped due to validation errors.';
+            }
             
             return redirect()->route('admin.items.index')
-                ->with('success', 'Products imported successfully.');
+                ->with('success', $message);
         } catch (\Exception $e) {
-            Log::error('Failed to import products: ' . $e->getMessage());
+            Log::error('Failed to import items', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $errorMessage = 'Failed to import items. ';
+            if (str_contains($e->getMessage(), 'Undefined array key')) {
+                $errorMessage .= 'Please check that your Excel file has the correct column headers: item_name, item_description, price, quantity (optional), groups (optional).';
+            } else {
+                $errorMessage .= $e->getMessage();
+            }
             
             return redirect()->back()
-                ->with('error', 'Failed to import products: ' . $e->getMessage())
+                ->with('error', $errorMessage)
                 ->withInput();
         }
     }

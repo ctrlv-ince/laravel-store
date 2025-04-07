@@ -49,9 +49,9 @@
 
                         <!-- Settings Dropdown -->
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
-                            @if (Route::has('login'))
+            @if (Route::has('login'))
                                 <div class="space-x-4">
-                                    @auth
+                    @auth
                                         <a href="{{ url('/dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-700 hover:bg-gray-600">
                                             <i class="fas fa-tachometer-alt mr-2"></i>
                                             Dashboard
@@ -107,20 +107,20 @@
                                     <i class="fas fa-tachometer-alt mr-2"></i>
                                     Dashboard
                                 </a>
-                            @else
+                    @else
                                 <a href="{{ route('login') }}" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700 hover:border-gray-300 focus:outline-none transition duration-150 ease-in-out">
                                     <i class="fas fa-sign-in-alt mr-2"></i>
                                     Log in
                                 </a>
-                                @if (Route::has('register'))
+                        @if (Route::has('register'))
                                     <a href="{{ route('register') }}" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700 hover:border-gray-300 focus:outline-none transition duration-150 ease-in-out">
                                         <i class="fas fa-user-plus mr-2"></i>
                                         Register
                                     </a>
-                                @endif
-                            @endauth
-                        </div>
-                    @endif
+                        @endif
+                    @endauth
+                </div>
+            @endif
                 </div>
             </nav>
 
@@ -150,7 +150,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                                </div>
 
             <!-- Categories Section -->
             <div class="bg-gray-900 py-12">
@@ -216,7 +216,7 @@
                             </div>
                         </div>
                         @endforeach
-                    </div>
+                            </div>
 
                     <div class="text-center mt-8">
                         <a href="{{ route('items.index') }}" class="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -283,8 +283,8 @@
                             </div>
                             <h3 class="text-xl font-bold text-white mb-2">Fast Shipping</h3>
                             <p class="text-gray-400">Quick delivery on all orders with tracking information provided.</p>
-                        </div>
-                        
+                                </div>
+
                         <div class="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
                             <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-blue-600 text-white mb-4">
                                 <i class="fas fa-shield-alt text-xl"></i>
@@ -299,10 +299,10 @@
                             </div>
                             <h3 class="text-xl font-bold text-white mb-2">Expert Support</h3>
                             <p class="text-gray-400">Our tech experts are ready to help with your questions and concerns.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
             <!-- Footer -->
             <footer class="bg-gray-800 border-t border-gray-700">
@@ -348,7 +348,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="mt-8 border-t border-gray-700 pt-8 flex flex-col md:flex-row md:items-center md:justify-between">
                         <div class="flex space-x-6 md:order-2">
                             <a href="#" class="text-gray-400 hover:text-white">

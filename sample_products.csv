@@ -1,11 +1,3 @@
-product_name,description,price,quantity,category
-Gaming Mouse X7,High-precision gaming mouse with 7 programmable buttons and adjustable DPI settings.,1499.99,15,Gaming Accessories
-Mechanical Keyboard Pro,RGB backlit mechanical keyboard with tactile switches for the ultimate gaming experience.,2699.50,8,Gaming Accessories
-Wireless Earbuds,True wireless earbuds with active noise cancellation and 24-hour battery life.,3499.75,20,Audio
-Smartphone Stand,Adjustable smartphone stand with cable management for desk or bedside.,299.99,30,Phone Accessories
-Laptop Cooling Pad,5-fan cooling pad for laptops up to 17 inches with adjustable height settings.,899.00,12,Laptop Accessories
-USB-C Hub,7-in-1 USB-C hub with HDMI, SD card reader, and 3 USB ports.,1299.99,25,Computer Accessories
-Power Bank 20000mAh,Fast-charging power bank with dual USB ports and USB-C input/output.,1799.50,18,Portable Chargers
-Smart Watch Pro,Fitness tracker with heart rate monitor, sleep tracking, and notifications.,4999.99,10,Wearables
-Bluetooth Speaker,Waterproof Bluetooth speaker with 12-hour battery life and deep bass.,1299.00,15,Audio
-Wireless Charger,10W fast wireless charging pad compatible with all Qi-enabled devices.,799.50,22,Phone Accessories 
+item_name,item_description,price,quantity,groups
+Arduino Uno R3,ATmega328P microcontroller, 14 digital I/O pins, 6 analog inputs,24.99,50,Arduino
+Raspberry Pi 4,4GB RAM, 1.5GHz quad-core CPU, dual-band WiFi,55.00,25,Raspberry Pi

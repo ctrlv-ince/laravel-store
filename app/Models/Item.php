@@ -5,36 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Laravel\Scout\Searchable;
 
 class Item extends Model
 {
-    use HasFactory, SoftDeletes, Searchable;
+    use HasFactory, SoftDeletes;
 
     protected $primaryKey = 'item_id';
-    public $timestamps = true;
+    public $incrementing = true;
+    protected $keyType = 'integer';
 
     protected $fillable = [
         'item_name',
+        'item_description',
         'price',
-        'item_description'
     ];
 
-    /**
-     * Get the indexable data array for the model.
-     *
-     * @return array
-     */
-    public function toSearchableArray()
-    {
-        return [
-            'item_id' => $this->item_id,
-            'item_name' => $this->item_name,
-            'item_description' => $this->item_description,
-            'price' => $this->price,
-            'groups' => $this->groups->pluck('group_name')->join(' ')
-        ];
-    }
+    protected $dates = ['deleted_at'];
 
     public function images()
     {
